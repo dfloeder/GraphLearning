@@ -1,4 +1,14 @@
+#import graphlearning as gl
+import sys
+print(sys.path)
+#sys.path.remove('/home/dfloeder/.local/lib/python3.8/site-packages/graphlearning/__init__.py')
+
+#sys.path.append('home/dfloeder/Spring22/Thesis/GraphLearning/graphlearning')
+#sys.path.remove('/home/dfloeder/.local/lib/python3.8/site-packages/graphlearning-1.0.9-py3.8-linux-x86_64.egg')
+#print(sys.path)
+
 import graphlearning as gl
+print(gl.__file__)
 
 labels = gl.datasets.load('mnist', labels_only=True)
 W = gl.weightmatrix.knn('mnist', 10, metric='vae')

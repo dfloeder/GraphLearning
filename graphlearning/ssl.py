@@ -121,9 +121,102 @@ import matplotlib.pyplot as plt
 
 
 from . import utils 
-from . import graph
+from . import graph 
+
+def compute_ratio(ps,digits,n):
+
+  L_adjust = np.repeat(digits,n,axis=0)
+  L_idx = np.argmax(ps,1)
+  L = L_adjust[np.arange(n),L_idx]
+
+  _,counts = np.unique(L,return_counts=True)
+  ratio = counts / n
+
+  return ratio
 
 
+## This is most current version
+## Bisects through classes 1-k iteratively until convergence
+def search(ps,digits,prior_ratio,T=10000,tol=1e-4,k=2):
+
+  n = ps.shape[0] # num data points
+  b = np.ones(k)  # upper end of search interval
+  iter = 0        # track iterations  
+
+  new_ratio = compute_ratio(ps,digits,n) # starting ratio from classification
+
+  x = np.ones(k) # optimal weights of classes, set to 1 for 1st iter for each class
+
+  # loop until weighted ratio within tol of prior ratio
+  while np.any(np.abs(new_ratio-prior_ratio) > tol):
+
+    # iterate through classes
+    for i in range(k):
+    
+      b_temp = np.copy(x) # init b_test to x vals of other classes (or 1's if 1st iter)
+      b_temp[i] = b[i]    # use actual b value for class i
+
+      # compute new class ratio using the b value of class i (and x vals for other classes)
+      high_ratio = compute_ratio(ps * b_temp, digits, n)[i]
+
+      # check if new class ratio weighted by b is high enough
+      high_check = high_ratio-prior_ratio[i] >= 0
+
+      # loop as long as upper bound for class i not large enough to get desired class proportion
+      while(not high_check):
+
+        b_temp[i] *= 2   # double test upper bound
+        b[i] = b_temp[i] # update b as well
+
+        # compute new class ratio using the b value of class i (and x vals for other classes)
+        high_ratio = compute_ratio(ps * b_temp, digits, n)[i]
+
+        # check if new class ratio weighted by b is high enough
+        high_check = high_ratio-prior_ratio[i] >= 0
+
+      # now loop to find optimal weight for each class using search interval [0,b]
+      a, b_vals = np.zeros(k), np.ones(k)
+
+      # use our high-enough b value we found above 
+      b_vals[i] = b[i]
+
+      # initialize midpoint weights for each class
+      idx = np.arange(k)[x==1] 
+      x[idx] = 1/2 * (b_vals[idx]+a[idx]) # x == 1 => uninitialized, so use midpoint instead there
+                                               # else x != 1 means existing value is optimal weight for that class
+
+      # compute ratio using x as weight vector
+      new_ratio = compute_ratio(ps*x,digits,n)
+
+      # loop to search for optimal weight for class i 
+      while np.abs(new_ratio[i]-prior_ratio[i]) >= tol:
+
+        # compute new ratio after multiplying by weight vector x
+        new_ratio = compute_ratio(ps * x, digits, n)
+
+        # shift interval to [a,x] or [x,b] depending on sign (for class i)
+        a[i] = a[i] + (x[i]-a[i]) * (new_ratio[i]-prior_ratio[i] < 0)
+        b_vals[i] = b_vals[i] + (x[i]-b_vals[i]) * (new_ratio[i]-prior_ratio[i] >= 0)
+
+        # compute new midpoint (for class i) and update iter 
+        x[i] = 1/2 * (b_vals[i]+a[i])
+        iter += 1
+
+        # if doesn't converge within num iterations, error out
+        if iter > T:
+          print(x,iter)
+          error
+
+    # print(f"a is {a}")
+    # print(f"x is {x}")
+    # print(f"b is {b}")
+
+    # compute new ratio using fully updated (for all classes) weight vector 
+    # used to check if we can exit the outermost while loop
+    new_ratio = compute_ratio(ps*x,digits,n)
+
+  # return optimum weights and number of iterations needed for convergence
+  return x,iter
 
 #Directories
 results_dir = os.path.join(os.getcwd(),'results')
@@ -148,6 +241,106 @@ class ssl:
             self.class_priors = self.class_priors / np.sum(self.class_priors)
         self.weights = 1
         self.class_priors_error = 1
+
+        print('hey')
+
+        
+    def compute_ratio(ps,digits,n):
+
+      L_adjust = np.repeat(digits,n,axis=0)
+      L_idx = np.argmax(ps,1)
+      L = L_adjust[np.arange(n),L_idx]
+
+      _,counts = np.unique(L,return_counts=True)
+      ratio = counts / n
+
+      return ratio
+
+
+    ## This is most current version
+    ## Bisects through classes 1-k iteratively until convergence
+    def search(ps,digits,prior_ratio,T=10000,tol=1e-4,k=2):
+
+      n = ps.shape[0] # num data points
+      b = np.ones(k)  # upper end of search interval
+      iter = 0        # track iterations  
+
+      new_ratio = compute_ratio(ps,digits,n) # starting ratio from classification
+
+      x = np.ones(k) # optimal weights of classes, set to 1 for 1st iter for each class
+
+      # loop until weighted ratio within tol of prior ratio
+      while np.any(np.abs(new_ratio-prior_ratio) > tol):
+
+        # iterate through classes
+        for i in range(k):
+        
+          b_temp = np.copy(x) # init b_test to x vals of other classes (or 1's if 1st iter)
+          b_temp[i] = b[i]    # use actual b value for class i
+
+          # compute new class ratio using the b value of class i (and x vals for other classes)
+          high_ratio = compute_ratio(ps * b_temp, digits, n)[i]
+
+          # check if new class ratio weighted by b is high enough
+          high_check = high_ratio-prior_ratio[i] >= 0
+
+          # loop as long as upper bound for class i not large enough to get desired class proportion
+          while(not high_check):
+
+            b_temp[i] *= 2   # double test upper bound
+            b[i] = b_temp[i] # update b as well
+
+            # compute new class ratio using the b value of class i (and x vals for other classes)
+            high_ratio = compute_ratio(ps * b_temp, digits, n)[i]
+
+            # check if new class ratio weighted by b is high enough
+            high_check = high_ratio-prior_ratio[i] >= 0
+
+          # now loop to find optimal weight for each class using search interval [0,b]
+          a, b_vals = np.zeros(k), np.ones(k)
+
+          # use our high-enough b value we found above 
+          b_vals[i] = b[i]
+
+          # initialize midpoint weights for each class
+          idx = np.arange(k)[x==1] 
+          x[idx] = 1/2 * (b_vals[idx]+a[idx]) # x == 1 => uninitialized, so use midpoint instead there
+                                                   # else x != 1 means existing value is optimal weight for that class
+
+          # compute ratio using x as weight vector
+          new_ratio = compute_ratio(ps*x,digits,n)
+
+          # loop to search for optimal weight for class i 
+          while np.abs(new_ratio[i]-prior_ratio[i]) >= tol:
+
+            # compute new ratio after multiplying by weight vector x
+            new_ratio = compute_ratio(ps * x, digits, n)
+
+            # shift interval to [a,x] or [x,b] depending on sign (for class i)
+            a[i] = a[i] + (x[i]-a[i]) * (new_ratio[i]-prior_ratio[i] < 0)
+            b_vals[i] = b_vals[i] + (x[i]-b_vals[i]) * (new_ratio[i]-prior_ratio[i] >= 0)
+
+            # compute new midpoint (for class i) and update iter 
+            x[i] = 1/2 * (b_vals[i]+a[i])
+            iter += 1
+
+            # if doesn't converge within num iterations, error out
+            if iter > T:
+              print(x,iter)
+              error
+
+        # print(f"a is {a}")
+        # print(f"x is {x}")
+        # print(f"b is {b}")
+
+        # compute new ratio using fully updated (for all classes) weight vector 
+        # used to check if we can exit the outermost while loop
+        new_ratio = compute_ratio(ps*x,digits,n)
+
+      # return optimum weights and number of iterations needed for convergence
+      return x,iter
+
+
 
     def set_graph(self, W):
         """Set Graph
@@ -181,32 +374,45 @@ class ssl:
         labels : numpy array (int)
             Predicted labels after volume correction.
         """
+        ps = self.prob
+        k = ps.shape[1]
+        classes = np.arange(k)
+        pr = self.class_priors
+        
+        x,i = search(ps,classes,pr,k=k)
+        class_size = np.mean(utils.labels_to_onehot(self.predict()),axis=0)
+        err = np.max(np.absolute(class_size-self.class_priors))
 
-        n = self.graph.num_nodes
-        k = self.prob.shape[1]
-        if type(self.weights) == int:
-            self.weights = np.ones((k,))
-
-        #Time step
-        dt = 0.1
-        if self.similarity:
-            dt *= -1
-
-        #np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
-        i = 0
-        err = 1
-        while i < 1e4 and err > 1e-3:
-            i += 1
-            class_size = np.mean(utils.labels_to_onehot(self.predict()),axis=0)
-            #print(class_size-self.class_priors)
-            grad = class_size - self.class_priors
-            err = np.max(np.absolute(grad))
-            self.weights += dt*grad
-            self.weights = self.weights/self.weights[0]
-
+        self.weights = x
         self.class_priors_error = err
-
+    
         return self.predict()
+
+#        n = self.graph.num_nodes
+#        k = self.prob.shape[1]
+#        if type(self.weights) == int:
+#            self.weights = np.ones((k,))
+
+#        #Time step
+#        dt = 0.1
+#        if self.similarity:
+#            dt *= -1
+
+#        #np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
+#        i = 0
+#        err = 1
+#        while i < 1e4 and err > 1e-3:
+#            i += 1
+#            class_size = np.mean(utils.labels_to_onehot(self.predict()),axis=0)
+#            #print(class_size-self.class_priors)
+#            grad = class_size - self.class_priors
+#            err = np.max(np.absolute(grad))
+#            self.weights += dt*grad
+#            self.weights = self.weights/self.weights[0]
+#
+#        self.class_priors_error = err
+#
+#        return self.predict()
 
     def get_accuracy_filename(self):
         """Get accuracy filename
